@@ -1,0 +1,304 @@
+---
+title: "Lab Project AYA"
+author: "Safia safa-tahar-henni"
+date: "January 28, 2019"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## AYA Project
+Les donnees proviennent de plusieurs sources:
+* Leucegene:
+500 patients dont 80 AYA
+donnees:  p-value analyse expression differentielle
+non normalise 
+analyse avec DeSeq2
+* TGCA: ~ 200 adultes
+* Target (https://ocg.cancer.gov/programs/target/projects/acute-myeloid-leukemia):
+Les chercheurs de TARGET analysent les tumeurs de patients pediatriques, dont beaucoup ont fait une rechute, afin d'identifier des biomarqueurs en correlation avec de mauvais resultats cliniques et / ou de nouvelles approches therapeutiques pour traiter la LMA chez l'enfant. (200 patients)
+
+
+But : Analyse expression differentielle, mettre en evidence des genes specifique aux Adolescents et jeunes Adultes (18-40 ans).
+
+
+## Repartition des echantillons selon leurs caracteristiques cliniques
+```{r}
+
+
+
+data_API = read.csv("file:///C:/Users/Safia/Documents/AYA/Leucegene risk complete.txt",header = T,sep = "\t")
+data_API<- data.frame(data_API[,-1], row.names=data_API[,1])
+
+t_data_API = as.data.frame(t(data_API)) # inverse colonne ligne
+colnames(t_data_API) <- gsub(" ","_",colnames(t_data_API)) # remplace les espaces dans le nom des colonnes
+t_data_API <- head(t_data_API, -1) # supprimme la deriniere ligne data_type 
+summary(t_data_API)
+
+```
+
+### Cytogenetic risk
+
+```{r}
+library('plyr') #package pour table de comptage
+```
+
+
+
+```{r}
+# count table
+count_cytogenetic_risk = count(t_data_API,"cytogenetic_risk " )
+
+# Pie chart
+par(xpd=TRUE, mar=c(0,0,2,0))
+pie(count_cytogenetic_risk$freq, main = "Pie chart cytogenetic risk ",labels = count_cytogenetic_risk$freq, col = rainbow(length(count_cytogenetic_risk$freq)))
+legend("topright",legend = count_cytogenetic_risk$cytogenetic_risk, cex = 1,ncol = 1,
+       fill = rainbow(length(count_cytogenetic_risk$freq)),xpd=NA)
+
+```
+
+### Cytogenetic subgroup
+
+
+
+```{r}
+# count table
+count_cytogenetic_subgroup = count(t_data_API, "cytogenetic_subgroup")
+
+# Pie chart
+par(xpd=TRUE, mar=c(0,0,2,0))
+pie(count_cytogenetic_subgroup$freq, main = "Pie chart cytogenetic subgroup ",labels = count_cytogenetic_subgroup$freq, col = rainbow(length(count_cytogenetic_subgroup$freq)))
+
+plot(1,type="n",axes=FALSE,xlab="",ylab="")
+legend("center",legend = count_cytogenetic_subgroup$cytogenetic_subgroup, cex = 0.8,ncol = 1,
+       fill = rainbow(length(count_cytogenetic_subgroup$freq)),xpd=NA)
+
+```
+
+### Subgroup
+
+
+
+```{r}
+# count table
+count_Subgroup = count(t_data_API, "Subgroup")
+
+# Pie chart
+par(xpd=TRUE, mar=c(0,0,2,0))
+pie(count_Subgroup$freq, main = "Pie chart Subgroup ",labels = count_Subgroup$freq, col = rainbow(length(count_Subgroup$freq)))
+
+plot(1,type="n",axes=FALSE,xlab="",ylab="")
+legend("center",legend = count_Subgroup$Subgroup, cex = 0.8,ncol = 1,
+       fill = rainbow(length(count_Subgroup$freq)),xpd=NA)
+```
+
+### WHO 2008
+
+
+
+```{r}
+# count table
+count_Who = count(t_data_API, "WHO_2008")
+
+# Pie chart
+par(xpd=TRUE, mar=c(0,0,2,0))
+pie(count_Who$freq, main = "Pie chart WHO 2008 ",labels = count_Who$freq, col = rainbow(length(count_Who$freq)))
+plot(1,type="n",axes=FALSE,xlab="",ylab="")
+legend("top",legend = count_Who$WHO_2008, cex = 0.8,ncol = 1,
+       fill = rainbow(length(count_Who$freq)),xpd=NA)
+
+```
+
+### FAB
+
+
+
+```{r}
+# count table
+count_FAB = count(t_data_API, "dx_FAB")
+
+# Pie chart
+par(xpd=TRUE, mar=c(0,0,2,0))
+pie(count_FAB$freq, main = "Pie chart Subgroup ",labels = count_FAB$freq, col = rainbow(length(count_FAB$freq)))
+plot(1,type="n",axes=FALSE,xlab="",ylab="")
+legend("top",legend = count_FAB$dx_FAB, cex = 0.8,ncol = 1,
+       fill = rainbow(length(count_FAB$freq)),xpd=NA)
+
+
+
+```
+
+## % Blast
+
+
+```{r}
+
+library("varhandle")
+
+blast_sup_50 = row.names(t_data_API[which(unfactor(t_data_API$`blasts_(%)`)>50),])
+blast_sup_50 # Individus sequence avec un pourcentage de blast > 50 %
+length(blast_sup_50) # Nombre d'individus sequence avec un pourcentage de blast > 50 %
+hist(as.numeric(unfactor(t_data_API$`blasts_(%)`)),xlab = "blast (%)", main = "Distribution % blast")
+
+```
+
+## Analyse expression differentielle a partir des read count
+
+```{r}
+
+adverse = row.names(t_data_API[which(unfactor(t_data_API$cytogenetic_risk)=="adverse cytogenetics"),])
+
+intermediate = row.names(t_data_API[which(unfactor(t_data_API$cytogenetic_risk)=="intermediate cytogenetics"),])
+
+favorable = row.names(t_data_API[which(unfactor(t_data_API$cytogenetic_risk)=="favorable cytogenetics"),])
+```
+
+
+
+
+```{r}
+
+library(magrittr)
+
+read_count = read.table("file:///C:/Users/Safia/Documents/AYA/genes_readcount.annotated.xls", header = T, sep="\t")
+
+read_count<- data.frame(read_count[,-1], row.names=read_count[,1])
+read_count = read_count[-c(1:4),]
+read_count = read_count[,-c(582:585)]
+names(read_count) = substring(names(read_count),8)
+```
+
+
+```{r}
+adverse = substring(adverse,2)
+count_adverse = read_count[,adverse]
+
+colnames(count_adverse) = paste("Adv", colnames(count_adverse), sep = "_")
+
+```
+
+
+```{r}
+intermediate = substring(intermediate,2)
+count_intermediate = read_count[,intermediate]
+
+colnames(count_intermediate) = paste("Int", colnames(count_intermediate), sep = "_")
+```
+
+```{r}
+favorable = substring(favorable,2)
+count_favorable = read_count[,favorable]
+
+colnames(count_favorable) = paste("Fav", colnames(count_favorable), sep = "_")
+```
+
+```{r}
+df = cbind(count_adverse,count_intermediate,count_favorable)
+
+```
+
+```{r}
+#source("http://bioconductor.org/biocLite.R")
+#biocLite("DESeq2", dependencies = TRUE)
+library("DESeq2")
+```
+
+```{r}
+samples <- data.frame(groups = substr(colnames(df), 1, 3))
+
+```
+
+
+```{r}
+ds <- DESeqDataSetFromMatrix(countData=df, colData=samples, design=~groups)
+colnames(ds) <- colnames(counts)
+ds <- DESeq(ds)
+ds
+```
+
+# "base mean" (an average of the normalized mean counts per group), 
+# the log2 fold change between the groups, and the 
+# P-values (both "raw" and adjusted for multiple comparisons)
+
+```{r}
+res <- results(ds)
+
+```
+
+## Analyse expression differentielle a partir des FPKM
+
+```{r}
+
+adverse = row.names(t_data_API[which(unfactor(t_data_API$cytogenetic_risk)=="adverse cytogenetics"),])
+
+intermediate = row.names(t_data_API[which(unfactor(t_data_API$cytogenetic_risk)=="intermediate cytogenetics"),])
+
+favorable = row.names(t_data_API[which(unfactor(t_data_API$cytogenetic_risk)=="favorable cytogenetics"),])
+```
+
+
+
+
+```{r}
+
+library(magrittr)
+
+fpkm = read.table("file:///C:/Users/Safia/Documents/AYA/genes_rsem_FPKM.annotated.xls", header = T, sep="\t")
+
+fpkm<- data.frame(fpkm[,-1], row.names=fpkm[,1])
+fpkm = fpkm[-1,]
+fpkm = fpkm[,-c(582:585)]
+indx = sapply(fpkm, is.factor)
+fpkm[indx] = lapply(fpkm[indx], function(x) as.numeric(as.numeric(as.character(x))))
+#getting rid of row with all values = 0
+fpkm = fpkm[rowSums(fpkm)<0,]
+```
+
+
+```{r}
+#biocLite("genefilter")
+library(genefilter)
+fpkm_adverse = fpkm[,adverse]
+fpkm_adverse$avg = rowMeans(fpkm_adverse,na.rm = T)
+fpkm_adverse$SD = rowSds(fpkm_adverse,na.rm = T)
+```
+
+
+```{r}
+fpkm_intermediate = fpkm[,intermediate]
+fpkm_intermediate$avg = rowMeans(fpkm_intermediate,na.rm = T)
+fpkm_intermediate$SD = rowSds(fpkm_intermediate,na.rm = T)
+```
+
+```{r}
+fpkm_favorable = fpkm[,favorable]
+fpkm_favorable$avg = rowMeans(fpkm_favorable,na.rm = T)
+fpkm_favorable$SD = rowSds(fpkm_favorable,na.rm = T)
+```
+
+```{r}
+FC_FavVsAdv = fpkm_favorable$avg / fpkm_adverse$avg
+
+sort(fpkm_adverse$avg)
+#FC_FavVsInt = fpkm_favorable$avg / fpkm_intermediate$avg
+#FC_IntVsAdv = fpkm_intermediate$avg / fpkm_adverse$avg
+```
+
+
+
+```{r}
+hist(FC_FavVsAdv, xlab = "Fold change Favorable VS. Adverse", xlim = c(0,250))
+#hist(FC_FavVsInt, xlab = "Fold change Favorable VS. Intermediate")
+#hist(FC_IntVsAdv, xlab = "Fold change Intermediate VS. Adverse")
+```
+
+
+```{r}
+#select genes with the largest fold change (and the smallest sd)
+```
+
